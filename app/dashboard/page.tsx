@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Apple, BarChart3, ClipboardList, Dumbbell, LineChart, MessageCircle, Moon, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import {
   Button,
@@ -22,7 +23,7 @@ import {
   TextBlock,
   TrainingPlanCard
 } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { AiDailyReview, AppProfile, DailyCheckin, MemberProfileInput, NutritionPlan, TrainingPlan, WeeklyReport } from "@/lib/types";
 
 type MePayload = {
@@ -40,7 +41,7 @@ export default function DashboardPage() {
   const { language, t } = useLanguage();
   const zh = language === "zh";
   const [data, setData] = useState<MePayload | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function DashboardPage() {
         setData(payload);
         if (!payload.memberProfile) router.replace("/onboarding");
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => setError(err));
   }, [router]);
 
   const weekStats = useMemo(() => {
@@ -73,12 +74,12 @@ export default function DashboardPage() {
 
   async function generateReport() {
     setLoadingReport(true);
-    setError("");
+    setError(null);
     try {
       const result = await apiFetch<{ report: WeeklyReport }>("/api/weekly-report", { method: "POST", body: "{}" });
       setData((current) => current ? { ...current, reports: [result.report, ...(current.reports || [])] } : current);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err : new Error("Error"));
     } finally {
       setLoadingReport(false);
     }
@@ -86,6 +87,8 @@ export default function DashboardPage() {
 
   const memberName = data?.profile?.name || data?.memberProfile?.name || (zh ? "会员" : "Member");
   const hasRisk = Boolean(data?.reviews?.[0]?.need_human_review || data?.trainingPlans?.[0]?.need_human_review || data?.nutritionPlans?.[0]?.need_human_review);
+  const authRequired = isUnauthorizedError(error);
+  const forbidden = isForbiddenError(error);
 
   return (
     <>
@@ -111,9 +114,11 @@ export default function DashboardPage() {
           }
         />
 
-        {error ? <Notice className="mb-4" tone="danger">{error}</Notice> : null}
+        {error && !authRequired && !forbidden ? <Notice className="mb-4" tone="danger">{getErrorMessage(error)}</Notice> : null}
         {!data && !error ? <LoadingState title={zh ? "正在整理会员状态" : "Preparing member status"} description={zh ? "读取你的资料、计划、打卡和最近反馈。" : "Loading profile, plans, check-ins, and recent feedback."} /> : null}
-        {error ? <ErrorState title={zh ? "仪表盘加载失败" : "Dashboard failed to load"} description={error} /> : null}
+        {!data && authRequired ? <AuthRequiredState area={zh ? "会员仪表盘" : "Member dashboard"} /> : null}
+        {!data && forbidden ? <ForbiddenState /> : null}
+        {!data && error && !authRequired && !forbidden ? <ErrorState title={zh ? "仪表盘加载失败" : "Dashboard failed to load"} description={getErrorMessage(error)} /> : null}
 
         {data ? (
           <div className="grid gap-4">

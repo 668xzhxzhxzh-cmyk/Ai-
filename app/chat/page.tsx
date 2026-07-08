@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Brain, ClipboardList, Dumbbell, FileText, Send, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import { Button, EmptyState, ErrorState, InsightCard, LoadingState, PageHeader, PageShell, SectionCard, SectionTitle, StatCard, StatusBadge, inputClass } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { AiChatMessage, DailyCheckin, MemberProfileInput, NutritionPlan, TrainingPlan } from "@/lib/types";
 
 type ChatPayload = {
@@ -24,7 +25,7 @@ export default function ChatPage() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     apiFetch<ChatPayload>("/api/me")
@@ -37,7 +38,7 @@ export default function ChatPage() {
           checkins: payload.checkins || []
         });
       })
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(err))
       .finally(() => setInitialLoading(false));
   }, []);
 
@@ -47,7 +48,7 @@ export default function ChatPage() {
     const text = question;
     setQuestion("");
     setLoading(true);
-    setError("");
+    setError(null);
     try {
       setMessages((current) => [
         ...current,
@@ -67,7 +68,7 @@ export default function ChatPage() {
       });
       setMessages((current) => [...current, result.answer]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err : new Error("Error"));
     } finally {
       setLoading(false);
     }
@@ -75,6 +76,8 @@ export default function ChatPage() {
 
   const profile = context?.memberProfile;
   const latestCheckin = context?.checkins?.[0];
+  const authRequired = isUnauthorizedError(error);
+  const forbidden = isForbiddenError(error);
 
   return (
     <>
@@ -92,8 +95,10 @@ export default function ChatPage() {
           }
         />
         {initialLoading ? <LoadingState title={zh ? "正在读取个人上下文" : "Loading personal context"} description={zh ? "整理会员资料、训练计划、饮食建议和最近打卡。" : "Preparing profile, plans, nutrition guidance, and recent check-ins."} /> : null}
-        {error && !initialLoading ? <ErrorState title={zh ? "问答加载失败" : "Coach chat failed to load"} description={error} /> : null}
-        <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
+        {!initialLoading && authRequired ? <AuthRequiredState area={zh ? "AI 教练问答" : "AI coach"} /> : null}
+        {!initialLoading && forbidden ? <ForbiddenState /> : null}
+        {error && !initialLoading && !authRequired && !forbidden ? <ErrorState title={zh ? "问答加载失败" : "Coach chat failed to load"} description={getErrorMessage(error)} /> : null}
+        {!initialLoading && (authRequired || forbidden) ? null : <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
           <div className="grid gap-4">
             <SectionCard>
               <SectionTitle title={zh ? "建议基于这些信息" : "Advice uses this context"} />
@@ -195,7 +200,7 @@ export default function ChatPage() {
               </Button>
             </form>
           </SectionCard>
-        </div>
+        </div>}
       </PageShell>
     </>
   );

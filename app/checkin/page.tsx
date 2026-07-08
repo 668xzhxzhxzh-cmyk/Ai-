@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Apple, ClipboardCheck, Moon, Scale, Zap } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import { Button, Field, InsightCard, Notice, PageHeader, PageShell, RecoveryScore, SectionCard, SectionTitle, StatCard, StatusBadge, TextBlock, inputClass } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getAccessToken, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { AiDailyReview, DailyCheckinInput } from "@/lib/types";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -28,9 +30,19 @@ export default function CheckinPage() {
   const { language, t } = useLanguage();
   const zh = language === "zh";
   const [form, setForm] = useState<DailyCheckinInput>(initial);
+  const [authError, setAuthError] = useState<Error | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [submitError, setSubmitError] = useState<Error | null>(null);
   const [review, setReview] = useState<AiDailyReview | null>(null);
+
+  useEffect(() => {
+    getAccessToken()
+      .then(() => setAuthError(null))
+      .catch((err: Error) => setAuthError(err))
+      .finally(() => setCheckingAuth(false));
+  }, []);
 
   function setValue(key: keyof DailyCheckinInput, value: string | number | boolean) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -50,6 +62,7 @@ export default function CheckinPage() {
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setSubmitError(null);
     try {
       const result = await apiFetch<{ review: AiDailyReview; risk: { need_human_review: boolean; review_reason: string | null } }>(
         "/api/checkins",
@@ -58,13 +71,18 @@ export default function CheckinPage() {
       setReview(result.review);
       setMessage(result.risk.need_human_review ? `${t("needReview")}: ${result.risk.review_reason}` : zh ? "打卡已提交。" : "Check-in submitted.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      const error = err instanceof Error ? err : new Error("Error");
+      setSubmitError(error);
+      setMessage(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   }
 
   const needsAttention = form.pain_level >= 4 || form.fatigue_level >= 8;
+  const accessError = authError || submitError;
+  const authRequired = isUnauthorizedError(accessError);
+  const forbidden = isForbiddenError(accessError);
 
   return (
     <>
@@ -82,7 +100,10 @@ export default function CheckinPage() {
           }
         />
 
-        <form className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]" onSubmit={submit}>
+        {!checkingAuth && authRequired ? <AuthRequiredState area={zh ? "每日打卡" : "Daily check-in"} /> : null}
+        {!checkingAuth && forbidden ? <ForbiddenState /> : null}
+
+        {!checkingAuth && !authError ? <form className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]" onSubmit={submit}>
           <div className="grid gap-4">
             <SectionCard className="grid place-items-center gap-4 text-center" accent={needsAttention ? "amber" : "lime"}>
               <RecoveryScore
@@ -135,7 +156,18 @@ export default function CheckinPage() {
               </Button>
               {loading ? <Notice className="flex-1">{zh ? "提交后会保存打卡，并整理当天反馈。请保持页面打开。" : "Your check-in is being saved and daily feedback is being prepared."}</Notice> : null}
             </div>
-            {message ? <Notice tone={message.includes(t("needReview")) ? "warning" : "success"}>{message}</Notice> : null}
+            {message ? (
+              <Notice tone={authRequired || forbidden ? "danger" : message.includes(t("needReview")) ? "warning" : "success"}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{authRequired ? (zh ? "请先登录后再提交打卡。" : "Please log in before submitting a check-in.") : forbidden ? (zh ? "当前账号没有提交打卡权限。" : "This account cannot submit check-ins.") : message}</span>
+                  {authRequired ? (
+                    <Link href="/auth">
+                      <Button className="min-h-9 px-3" variant="secondary">{zh ? "去登录" : "Log in"}</Button>
+                    </Link>
+                  ) : null}
+                </div>
+              </Notice>
+            ) : null}
             <InsightCard title={zh ? "为什么要打卡" : "Why this matters"} icon={Scale} tone="neutral">
               {zh ? "打卡不是考核，而是给下次训练提供依据。连续记录会让计划更像真人教练的持续调整。" : "Check-ins are not a test. They give the next session better context and make planning feel more coach-led."}
             </InsightCard>
@@ -155,7 +187,7 @@ export default function CheckinPage() {
               </div>
             </SectionCard>
           </div>
-        </form>
+        </form> : null}
 
         {review ? (
           <SectionCard className="mt-4" accent={review.need_human_review ? "amber" : "sky"}>

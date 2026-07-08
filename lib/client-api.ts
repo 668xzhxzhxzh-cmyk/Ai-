@@ -7,14 +7,40 @@ const cache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 const ME_CACHE_MS = 15_000;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isUnauthorizedError(error: unknown) {
+  return error instanceof ApiError && error.status === 401;
+}
+
+export function isForbiddenError(error: unknown) {
+  return error instanceof ApiError && error.status === 403;
+}
+
+export function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Error";
+}
+
 export async function getAccessToken() {
   const supabase = createBrowserSupabase();
   const { data, error } = await supabase.auth.getSession();
   const fallbackToken = getLocalAccessToken();
   if (error && !fallbackToken) {
-    throw new Error("Please log in first.");
+    throw new ApiError("Please log in first.", 401);
   }
-  return data.session?.access_token || fallbackToken || "";
+  const token = data.session?.access_token || fallbackToken || "";
+  if (!token) {
+    throw new ApiError("Please log in first.", 401);
+  }
+  return token;
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -43,7 +69,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }).then(async (response) => {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Request failed");
+      throw new ApiError(payload.error || "Request failed", response.status);
     }
     if (canCache) {
       cache.set(path, { expiresAt: Date.now() + ME_CACHE_MS, value: payload });

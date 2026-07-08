@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Activity, Apple, ClipboardCheck, Dumbbell, RefreshCw, ShieldCheck, Utensils } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import {
   Button,
@@ -20,7 +21,7 @@ import {
   TextBlock,
   TrainingPlanCard
 } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { MemberProfileInput, NutritionPlan, TrainingPlan } from "@/lib/types";
 
 type PlansPayload = {
@@ -34,14 +35,16 @@ export default function PlansPage() {
   const zh = language === "zh";
   const [data, setData] = useState<PlansPayload | null>(null);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [loading, setLoading] = useState<"training" | "nutrition" | null>(null);
 
   async function load() {
     setMessage("");
+    setLoadError(null);
     try {
       setData(await apiFetch<PlansPayload>("/api/me"));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setLoadError(err instanceof Error ? err : new Error("Error"));
     }
   }
 
@@ -60,7 +63,7 @@ export default function PlansPage() {
       setData((current) => current ? { ...current, trainingPlans: [result.trainingPlan, ...current.trainingPlans] } : current);
       setMessage(result.risk.need_human_review ? `${t("needReview")}: ${result.risk.review_reason}` : zh ? "训练计划已制定并保存。" : "Training plan built and saved.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setMessage(getErrorMessage(err));
     } finally {
       setLoading(null);
     }
@@ -77,7 +80,7 @@ export default function PlansPage() {
       setData((current) => current ? { ...current, nutritionPlans: [result.nutritionPlan, ...current.nutritionPlans] } : current);
       setMessage(result.risk.need_human_review ? `${t("needReview")}: ${result.risk.review_reason}` : zh ? "饮食建议已制定并保存。" : "Nutrition guidance built and saved.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setMessage(getErrorMessage(err));
     } finally {
       setLoading(null);
     }
@@ -85,6 +88,8 @@ export default function PlansPage() {
 
   const profile = data?.memberProfile;
   const riskTone = profile && (profile.pain_level >= 4 || profile.has_injury) ? "warning" : "success";
+  const authRequired = isUnauthorizedError(loadError);
+  const forbidden = isForbiddenError(loadError);
 
   return (
     <>
@@ -102,8 +107,10 @@ export default function PlansPage() {
           }
         />
         {message ? <Notice className="mb-4" tone={message === "DeepSeek API 未配置" ? "danger" : message.includes(t("needReview")) ? "warning" : "success"}>{message}</Notice> : null}
-        {!data && !message ? <LoadingState title={zh ? "正在读取计划档案" : "Loading plan profile"} description={zh ? "整理会员资料、训练计划和饮食建议。" : "Preparing profile, training plans, and nutrition guidance."} /> : null}
-        {!data && message ? <ErrorState title={zh ? "计划加载失败" : "Plans failed to load"} description={message} /> : null}
+        {!data && !loadError ? <LoadingState title={zh ? "正在读取计划档案" : "Loading plan profile"} description={zh ? "整理会员资料、训练计划和饮食建议。" : "Preparing profile, training plans, and nutrition guidance."} /> : null}
+        {!data && authRequired ? <AuthRequiredState area={zh ? "训练与饮食计划" : "Plans"} /> : null}
+        {!data && forbidden ? <ForbiddenState /> : null}
+        {!data && loadError && !authRequired && !forbidden ? <ErrorState title={zh ? "计划加载失败" : "Plans failed to load"} description={getErrorMessage(loadError)} /> : null}
         {data && !profile ? (
           <SectionCard className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-zinc-300">{t("profileRequired")}</p>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ClipboardList, Dumbbell, MessageCircle, RefreshCw, ShieldAlert, Utensils } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import {
   Button,
@@ -22,7 +23,7 @@ import {
   TextBlock,
   TrainingPlanCard
 } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type {
   AdminTask,
   AiChatMessage,
@@ -54,14 +55,16 @@ export default function AdminMemberDetailPage() {
   const zh = language === "zh";
   const [data, setData] = useState<DetailPayload | null>(null);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setMessage("");
+    setLoadError(null);
     try {
       setData(await apiFetch<DetailPayload>(`/api/admin/members/${params.id}`));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setLoadError(err instanceof Error ? err : new Error("Error"));
     }
   }, [params.id]);
 
@@ -77,7 +80,7 @@ export default function AdminMemberDetailPage() {
       await load();
       setMessage(zh ? "下周计划已制定。" : "Next week plan prepared.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setMessage(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -86,6 +89,8 @@ export default function AdminMemberDetailPage() {
   const latest = data?.checkins?.[0];
   const openTasks = data?.tasks.filter((task) => task.status === "open") || [];
   const hasRisk = openTasks.length > 0 || Boolean(data?.reviews?.[0]?.need_human_review);
+  const authRequired = isUnauthorizedError(loadError);
+  const forbidden = isForbiddenError(loadError);
   const profileRows = useMemo(() => {
     if (!data?.memberProfile) return [];
     return [
@@ -134,8 +139,10 @@ export default function AdminMemberDetailPage() {
         />
 
         {message ? <Notice className="mb-4" tone={message.includes("Error") ? "danger" : "success"}>{message}</Notice> : null}
-        {!data && !message ? <LoadingState title={zh ? "正在读取会员档案" : "Loading member record"} description={zh ? "整理会员资料、计划、打卡、AI 分析和风险任务。" : "Preparing profile, plans, check-ins, AI reviews, and risk tasks."} /> : null}
-        {!data && message ? <ErrorState title={zh ? "会员详情加载失败" : "Member detail failed to load"} description={message} /> : null}
+        {!data && !loadError ? <LoadingState title={zh ? "正在读取会员档案" : "Loading member record"} description={zh ? "整理会员资料、计划、打卡、AI 分析和风险任务。" : "Preparing profile, plans, check-ins, AI reviews, and risk tasks."} /> : null}
+        {!data && authRequired ? <AuthRequiredState area={zh ? "会员详情" : "Member detail"} /> : null}
+        {!data && forbidden ? <ForbiddenState admin /> : null}
+        {!data && loadError && !authRequired && !forbidden ? <ErrorState title={zh ? "会员详情加载失败" : "Member detail failed to load"} description={getErrorMessage(loadError)} /> : null}
 
         {data ? (
           <div className="grid gap-4">

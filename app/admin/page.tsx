@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, Search, UsersRound } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import {
   Button,
@@ -20,7 +21,7 @@ import {
   TextBlock,
   inputClass
 } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type {
   AdminTask,
   AiChatMessage,
@@ -51,19 +52,19 @@ export default function AdminPage() {
   const zh = language === "zh";
   const [data, setData] = useState<AdminPayload | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "risk" | "stale">("all");
 
   async function load() {
-    setError("");
+    setError(null);
     try {
       const payload = await apiFetch<AdminPayload>("/api/admin/overview");
       setData(payload);
       setSelectedUserId((current) => current || payload.profiles.find((item) => item.role === "member")?.user_id || "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err : new Error("Error"));
     }
   }
 
@@ -93,12 +94,12 @@ export default function AdminPage() {
 
   async function adjustNextWeek(userId: string) {
     setLoading(true);
-    setError("");
+    setError(null);
     try {
       await apiFetch("/api/adjust-next-week", { method: "POST", body: JSON.stringify({ userId }) });
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err : new Error("Error"));
     } finally {
       setLoading(false);
     }
@@ -122,6 +123,8 @@ export default function AdminPage() {
     const matchesStatus = statusFilter === "all" || (statusFilter === "risk" && hasRisk) || (statusFilter === "stale" && isStale);
     return matchesKeyword && matchesStatus;
   });
+  const authRequired = isUnauthorizedError(error);
+  const forbidden = isForbiddenError(error);
 
   return (
     <>
@@ -138,7 +141,9 @@ export default function AdminPage() {
             </>
           }
         />
-        {error ? <ErrorState title={zh ? "后台加载失败" : "Admin failed to load"} description={error} /> : null}
+        {!data && authRequired ? <AuthRequiredState area={zh ? "教练工作台" : "Coach console"} /> : null}
+        {!data && forbidden ? <ForbiddenState admin /> : null}
+        {!data && error && !authRequired && !forbidden ? <ErrorState title={zh ? "后台加载失败" : "Admin failed to load"} description={getErrorMessage(error)} /> : null}
         {!data && !error ? <LoadingState title={zh ? "正在读取教练工作台" : "Loading coach console"} description={zh ? "整理会员列表、风险任务、打卡和计划状态。" : "Preparing members, risk tasks, check-ins, and plan status."} /> : null}
         {data ? (
           <div className="grid gap-4">

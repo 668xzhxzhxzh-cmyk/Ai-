@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, Moon, Scale, Sparkles, TrendingUp } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import { ProgressCharts } from "@/components/progress-charts";
 import { ErrorState, InsightCard, LoadingState, Notice, PageHeader, PageShell, RecoveryScore, SectionCard, SectionTitle, StatCard, TextBlock } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { DailyCheckin, WeeklyReport } from "@/lib/types";
 
 export default function ProgressPage() {
@@ -14,7 +15,7 @@ export default function ProgressPage() {
   const zh = language === "zh";
   const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
   const [reports, setReports] = useState<WeeklyReport[]>([]);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function ProgressPage() {
         setCheckins(payload.checkins || []);
         setReports(payload.reports || []);
       })
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,6 +48,9 @@ export default function ProgressPage() {
     };
   }, [checkins]);
 
+  const authRequired = isUnauthorizedError(error);
+  const forbidden = isForbiddenError(error);
+
   return (
     <>
       <AppNav />
@@ -56,7 +60,11 @@ export default function ProgressPage() {
           title={zh ? "看趋势，不只看单天表现。" : "Track trends, not isolated days."}
           subtitle={zh ? "体重、训练完成率、打卡率、睡眠和疼痛会一起解释你的恢复与进步。" : "Weight, completion, check-in rate, sleep, and pain explain recovery and progress together."}
         />
-        {loading ? <LoadingState title={zh ? "正在读取进度数据" : "Loading progress data"} description={zh ? "整理体重、训练、睡眠和恢复趋势。" : "Preparing weight, training, sleep, and recovery trends."} /> : error ? <ErrorState title={zh ? "进度加载失败" : "Progress failed to load"} description={error} /> : (
+        {loading ? <LoadingState title={zh ? "正在读取进度数据" : "Loading progress data"} description={zh ? "整理体重、训练、睡眠和恢复趋势。" : "Preparing weight, training, sleep, and recovery trends."} /> : authRequired ? (
+          <AuthRequiredState area={zh ? "进度追踪" : "Progress"} />
+        ) : forbidden ? (
+          <ForbiddenState />
+        ) : error ? <ErrorState title={zh ? "进度加载失败" : "Progress failed to load"} description={getErrorMessage(error)} /> : (
           <div className="grid gap-4">
             <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
               <SectionCard className="grid place-items-center gap-4">

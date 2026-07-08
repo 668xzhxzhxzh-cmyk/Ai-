@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, Apple, ShieldAlert, UserRound } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { AuthRequiredState, ForbiddenState } from "@/components/auth-required-state";
 import { useLanguage } from "@/components/language-provider";
 import { Button, Field, InsightCard, Notice, PageHeader, PageShell, SectionCard, SectionTitle, StatCard, StatusBadge, inputClass } from "@/components/ui";
-import { apiFetch } from "@/lib/client-api";
+import { apiFetch, getErrorMessage, isForbiddenError, isUnauthorizedError } from "@/lib/client-api";
 import type { MemberProfileInput } from "@/lib/types";
 
 type ProfileForm = MemberProfileInput & { language: "zh" | "en" };
@@ -40,6 +41,8 @@ export default function OnboardingPage() {
   const zh = language === "zh";
   const [form, setForm] = useState<ProfileForm>({ ...initialForm, language });
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState<Error | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -55,7 +58,8 @@ export default function OnboardingPage() {
           });
         }
       })
-      .catch((err: Error) => setMessage(err.message));
+      .catch((err: Error) => setLoadError(err))
+      .finally(() => setCheckingAuth(false));
   }, [setLanguage]);
 
   function setValue(key: keyof ProfileForm, value: string | number | boolean) {
@@ -77,11 +81,14 @@ export default function OnboardingPage() {
       }
       router.push("/dashboard");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Error");
+      setMessage(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }
+
+  const authRequired = isUnauthorizedError(loadError);
+  const forbidden = isForbiddenError(loadError);
 
   return (
     <>
@@ -99,7 +106,11 @@ export default function OnboardingPage() {
           }
         />
 
-        <form className="grid gap-4" onSubmit={save}>
+        {checkingAuth ? null : authRequired ? <AuthRequiredState area={zh ? "会员资料" : "Member profile"} /> : null}
+        {checkingAuth ? null : forbidden ? <ForbiddenState /> : null}
+        {checkingAuth ? null : loadError && !authRequired && !forbidden ? <Notice className="mb-4" tone="danger">{getErrorMessage(loadError)}</Notice> : null}
+
+        {!checkingAuth && !loadError ? <form className="grid gap-4" onSubmit={save}>
           <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
             <div className="grid gap-4">
               <SectionCard accent="lime">
@@ -180,7 +191,7 @@ export default function OnboardingPage() {
             <Button disabled={loading} className="w-full sm:w-auto">{loading ? t("loading") : zh ? "保存并进入仪表盘" : "Save and go to dashboard"}</Button>
             {message ? <Notice className="flex-1" tone={message.includes(t("needReview")) ? "warning" : "danger"}>{message}</Notice> : null}
           </div>
-        </form>
+        </form> : null}
       </PageShell>
     </>
   );
