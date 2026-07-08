@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { ProxyAgent, fetch as undiciFetch } from "undici";
 
+function cleanEnv(name: string) {
+  return process.env[name]?.trim();
+}
+
 export function createServerFetch() {
   const proxyUrl = process.env.SUPABASE_FETCH_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
   const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : null;
@@ -31,11 +35,11 @@ export function createServerFetch() {
 }
 
 export function createServerAuthSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = cleanEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = cleanEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
   if (!url || !anonKey) {
-    throw new Error("Missing Supabase public server environment variables.");
+    throw new Error("Missing Supabase public server environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.");
   }
 
   return createClient(url, anonKey, {
@@ -50,11 +54,11 @@ export function createServerAuthSupabase() {
 }
 
 export function createAdminSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = cleanEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceKey = cleanEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!url || !serviceKey) {
-    throw new Error("Missing Supabase server environment variables.");
+    throw new Error("Missing Supabase server environment variables. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.");
   }
 
   return createClient(url, serviceKey, {
