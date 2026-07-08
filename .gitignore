@@ -1,0 +1,10 @@
+.next
+node_modules
+.env
+.env.local
+.env*.local
+*.local
+*.tsbuildinfo
+vercel.json
+.next-dev.log
+codex-history-restore/
