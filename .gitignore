@@ -8,3 +8,4 @@ node_modules
 vercel.json
 .next-dev.log
 codex-history-restore/
+.edgeone/

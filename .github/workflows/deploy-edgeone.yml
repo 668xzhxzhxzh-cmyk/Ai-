@@ -51,17 +51,15 @@ jobs:
       - name: Verify build
         run: npm run build
 
-      - name: Deploy to EdgeOne Makers
+      - name: Sync env and deploy to EdgeOne Makers
         env:
-          EDGEONE_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
         run: |
-          if [ -z "$EDGEONE_TOKEN" ]; then
+          if [ -z "$EDGEONE_PAGES_API_TOKEN" ]; then
             echo "Missing GitHub secret EDGEONE_PAGES_API_TOKEN."
             exit 1
           fi
-          npx edgeone makers deploy \
-            -n "${{ inputs.project_name }}" \
-            -e "${{ inputs.environment }}" \
-            -a "${{ inputs.area }}" \
-            -t "$EDGEONE_TOKEN" \
-            --json
+          EDGEONE_PROJECT_NAME="${{ inputs.project_name }}" \
+          EDGEONE_ENV="${{ inputs.environment }}" \
+          EDGEONE_AREA="${{ inputs.area }}" \
+          npm run deploy:edgeone

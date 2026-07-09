@@ -69,6 +69,23 @@ npx edgeone makers deploy -n ai-shaofeng-fitness -e production -a global -t "$ED
 
 注意：运行时环境变量仍建议在 EdgeOne Makers 控制台的项目环境变量里配置一份，确保服务端函数运行时也能读取 Supabase 和 DeepSeek key。
 
+## 本地一键部署
+
+如果已经有 EdgeOne Makers API Token，或本机 `npx edgeone login -s china` 已经登录成功，可以直接运行：
+
+```bash
+npm run deploy:edgeone
+```
+
+脚本会从 `.env.local` 读取部署所需变量，同步到 EdgeOne Makers，然后构建并部署 `ai-shaofeng-fitness`。如果使用 Token，在 PowerShell 中先设置：
+
+```powershell
+$env:EDGEONE_PAGES_API_TOKEN="你的 EdgeOne Makers API Token"
+npm run deploy:edgeone
+```
+
+脚本不会把真实 key 写进代码，也不会在终端输出真实 key。可以先用 `npm run deploy:edgeone -- --dry-run` 检查将执行的步骤。
+
 ## Supabase 配置
 
 Supabase Auth 的 Site URL 和 Redirect URLs 需要加入正式国内域名：
