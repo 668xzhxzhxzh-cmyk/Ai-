@@ -1,5 +1,5 @@
 import { isDeepSeekConfigured } from "@/lib/deepseek";
-import { createAdminSupabase } from "@/lib/supabase-admin";
+import { createAdminSupabase, createServerAuthFallbackSupabase, createServerAuthSupabase } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -42,14 +42,41 @@ function describeError(error: unknown) {
   };
 }
 
+function isExpectedInvalidCredentials(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const record = error as Record<string, unknown>;
+  const message = typeof record.message === "string" ? record.message : "";
+  const status = typeof record.status === "number" || typeof record.status === "string" ? String(record.status) : "";
+  return /invalid login credentials/i.test(message) && status !== "401";
+}
+
+async function checkAuthClient(createClient: () => ReturnType<typeof createServerAuthSupabase>) {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: "health-check-user@example.invalid",
+    password: "health-check-password"
+  });
+
+  if (!error || isExpectedInvalidCredentials(error)) {
+    return { ok: true, error: null };
+  }
+
+  return { ok: false, error: describeError(error) };
+}
+
 export async function GET() {
   const startedAt = Date.now();
   const checks = {
     app: true,
     supabase: false,
+    supabaseAuth: false,
     deepseek: isDeepSeekConfigured()
   };
   let supabaseError: ReturnType<typeof describeError> | null = null;
+  let supabaseAuthPrimaryError: ReturnType<typeof describeError> | null = null;
+  let supabaseAuthFallbackError: ReturnType<typeof describeError> | null = null;
+  let supabaseAuthMode: "primary" | "fallback" | "unavailable" = "unavailable";
 
   try {
     const supabase = createAdminSupabase();
@@ -60,13 +87,42 @@ export async function GET() {
     supabaseError = describeError(error);
   }
 
+  const checkFallbackAuth = async () => {
+    const fallbackAuth = await checkAuthClient(createServerAuthFallbackSupabase);
+    if (fallbackAuth.ok) {
+      checks.supabaseAuth = true;
+      supabaseAuthMode = "fallback";
+    } else {
+      supabaseAuthFallbackError = fallbackAuth.error;
+    }
+  };
+
+  try {
+    const primaryAuth = await checkAuthClient(createServerAuthSupabase);
+    if (primaryAuth.ok) {
+      checks.supabaseAuth = true;
+      supabaseAuthMode = "primary";
+    } else {
+      supabaseAuthPrimaryError = primaryAuth.error;
+      await checkFallbackAuth();
+    }
+  } catch (error) {
+    supabaseAuthPrimaryError = describeError(error);
+    await checkFallbackAuth().catch((fallbackError) => {
+      supabaseAuthFallbackError = describeError(fallbackError);
+    });
+  }
+
   return Response.json(
     {
-      ok: checks.app && checks.supabase && checks.deepseek,
+      ok: checks.app && checks.supabase && checks.supabaseAuth && checks.deepseek,
       checks,
       diagnostics: {
         supabase: supabaseError?.message ?? null,
         supabaseError,
+        supabaseAuthMode,
+        supabaseAuthPrimaryError,
+        supabaseAuthFallbackError,
         supabaseHost: getSupabaseUrlHost(),
         env: {
           SUPABASE_URL: Boolean(cleanEnv("SUPABASE_URL")),
@@ -81,7 +137,7 @@ export async function GET() {
       }
     },
     {
-      status: checks.app && checks.supabase && checks.deepseek ? 200 : 503,
+      status: checks.app && checks.supabase && checks.supabaseAuth && checks.deepseek ? 200 : 503,
       headers: {
         "Cache-Control": "no-store"
       }

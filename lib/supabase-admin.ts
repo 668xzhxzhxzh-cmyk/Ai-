@@ -76,6 +76,25 @@ export function createServerAuthSupabase() {
   });
 }
 
+export function createServerAuthFallbackSupabase() {
+  const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+  const serviceKey = cleanEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!url || !serviceKey) {
+    throw new Error("Missing Supabase auth fallback environment variables. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your deployment platform.");
+  }
+
+  return createClient(url, serviceKey, {
+    global: {
+      fetch: createServerFetch()
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
+}
+
 export function createAdminSupabase() {
   const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
   const serviceKey = cleanEnv("SUPABASE_SERVICE_ROLE_KEY");

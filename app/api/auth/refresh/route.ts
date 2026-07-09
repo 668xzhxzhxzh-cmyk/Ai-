@@ -1,32 +1,68 @@
 import { z } from "zod";
-import { createServerAuthSupabase } from "@/lib/supabase-admin";
+import { createServerAuthFallbackSupabase, createServerAuthSupabase } from "@/lib/supabase-admin";
 import { apiError } from "@/lib/server-data";
 
 const schema = z.object({
   refresh_token: z.string().min(1)
 });
 
+function isInvalidApiKeyError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const message = (error as Record<string, unknown>).message;
+  return typeof message === "string" && /invalid api key|missing supabase auth environment variables/i.test(message);
+}
+
+function serializeSupabaseError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return {
+      name: "RefreshSessionError",
+      message: "Please log in first.",
+      status: null
+    };
+  }
+
+  const record = error as Record<string, unknown>;
+  return {
+    name: typeof record.name === "string" ? record.name : "RefreshSessionError",
+    message: typeof record.message === "string" ? record.message : "Please log in first.",
+    status: typeof record.status === "number" || typeof record.status === "string" ? String(record.status) : null
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const payload = schema.parse(await request.json());
-    const supabase = createServerAuthSupabase();
-    const { data, error } = await supabase.auth.refreshSession({
-      refresh_token: payload.refresh_token
-    });
+    let data = null;
+    let error: unknown = null;
 
-    if (error || !data.session) {
+    try {
+      const supabase = createServerAuthSupabase();
+      const result = await supabase.auth.refreshSession({
+        refresh_token: payload.refresh_token
+      });
+      data = result.data;
+      error = result.error;
+    } catch (authError) {
+      error = authError;
+    }
+
+    if (error && isInvalidApiKeyError(error)) {
+      const fallbackSupabase = createServerAuthFallbackSupabase();
+      const fallbackResult = await fallbackSupabase.auth.refreshSession({
+        refresh_token: payload.refresh_token
+      });
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+
+    if (error || !data?.session) {
+      const details = serializeSupabaseError(error);
       return Response.json(
         {
-          error: error?.message || "Please log in first.",
-          details: error
-            ? {
-                name: error.name || "RefreshSessionError",
-                message: error.message,
-                status: typeof error.status === "number" || typeof error.status === "string" ? String(error.status) : null
-              }
-            : null
+          error: details.message,
+          details
         },
-        { status: error?.status ? Number(error.status) || 401 : 401 }
+        { status: details.status ? Number(details.status) || 401 : 401 }
       );
     }
 

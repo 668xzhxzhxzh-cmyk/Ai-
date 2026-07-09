@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createServerAuthSupabase } from "@/lib/supabase-admin";
+import { createServerAuthFallbackSupabase, createServerAuthSupabase } from "@/lib/supabase-admin";
 import { apiError } from "@/lib/server-data";
 
 const loginSchema = z.object({
@@ -24,14 +24,39 @@ function serializeSupabaseError(error: unknown) {
   };
 }
 
+function isInvalidApiKeyError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const message = (error as Record<string, unknown>).message;
+  return typeof message === "string" && /invalid api key|missing supabase auth environment variables/i.test(message);
+}
+
 export async function POST(request: Request) {
   try {
     const payload = loginSchema.parse(await request.json());
-    const supabase = createServerAuthSupabase();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: payload.email,
-      password: payload.password
-    });
+    let data = null;
+    let error: unknown = null;
+
+    try {
+      const supabase = createServerAuthSupabase();
+      const result = await supabase.auth.signInWithPassword({
+        email: payload.email,
+        password: payload.password
+      });
+      data = result.data;
+      error = result.error;
+    } catch (authError) {
+      error = authError;
+    }
+
+    if (error && isInvalidApiKeyError(error)) {
+      const fallbackSupabase = createServerAuthFallbackSupabase();
+      const fallbackResult = await fallbackSupabase.auth.signInWithPassword({
+        email: payload.email,
+        password: payload.password
+      });
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       const details = serializeSupabaseError(error);
@@ -44,7 +69,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!data.session) {
+    if (!data?.session) {
       return Response.json(
         {
           error: "Supabase did not return a session. Please confirm email settings and try again.",
