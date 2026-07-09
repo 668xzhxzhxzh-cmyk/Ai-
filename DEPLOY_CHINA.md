@@ -29,7 +29,7 @@
 5. 生产环境变量填写下面这些名字和值。
 
 ```bash
-SUPABASE_URL=https://rufkeckqiqcyqzmfaeual.supabase.co
+SUPABASE_URL=https://rufkeckqicyqzmfaeual.supabase.co
 SUPABASE_ANON_KEY=填 Supabase Publishable key 或 anon public key
 SUPABASE_SERVICE_ROLE_KEY=填 Supabase Secret key 或 service_role key
 DEEPSEEK_API_KEY=填 DeepSeek API Key
