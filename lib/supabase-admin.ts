@@ -59,13 +59,13 @@ export function createServerFetch() {
 
 export function createServerAuthSupabase() {
   const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = firstEnv("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const authKey = firstEnv("SUPABASE_AUTH_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-  if (!url || !anonKey) {
-    throw new Error("Missing Supabase auth environment variables. Check SUPABASE_URL and SUPABASE_ANON_KEY in your deployment platform.");
+  if (!url || !authKey) {
+    throw new Error("Missing Supabase auth environment variables. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your deployment platform.");
   }
 
-  return createClient(url, anonKey, {
+  return createClient(url, authKey, {
     global: {
       fetch: createServerFetch()
     },
@@ -78,13 +78,13 @@ export function createServerAuthSupabase() {
 
 export function createServerAuthFallbackSupabase() {
   const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
-  const serviceKey = cleanEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = firstEnv("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-  if (!url || !serviceKey) {
-    throw new Error("Missing Supabase auth fallback environment variables. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your deployment platform.");
+  if (!url || !anonKey) {
+    throw new Error("Missing Supabase auth fallback environment variables. Check SUPABASE_URL and SUPABASE_ANON_KEY in your deployment platform.");
   }
 
-  return createClient(url, serviceKey, {
+  return createClient(url, anonKey, {
     global: {
       fetch: createServerFetch()
     },
