@@ -40,6 +40,35 @@ NEXT_PUBLIC_SITE_URL=填你的正式国内访问域名
 
 不要把真实 key 写进代码、README、截图或 GitHub。只填在部署平台环境变量里。
 
+## GitHub Actions 手动部署
+
+仓库里已经提供 `.github/workflows/deploy-edgeone.yml`。它不会自动运行，需要在 GitHub Actions 里手动触发。
+
+先在 GitHub 仓库 Settings -> Secrets and variables -> Actions 添加：
+
+```text
+EDGEONE_PAGES_API_TOKEN
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+DEEPSEEK_API_KEY
+NEXT_PUBLIC_SITE_URL
+```
+
+然后进入 Actions -> Deploy EdgeOne Makers -> Run workflow。默认项目名是：
+
+```text
+ai-shaofeng-fitness
+```
+
+这个 workflow 会先跑 `npm run build`，再执行：
+
+```bash
+npx edgeone makers deploy -n ai-shaofeng-fitness -e production -a global -t "$EDGEONE_PAGES_API_TOKEN" --json
+```
+
+注意：运行时环境变量仍建议在 EdgeOne Makers 控制台的项目环境变量里配置一份，确保服务端函数运行时也能读取 Supabase 和 DeepSeek key。
+
 ## Supabase 配置
 
 Supabase Auth 的 Site URL 和 Redirect URLs 需要加入正式国内域名：

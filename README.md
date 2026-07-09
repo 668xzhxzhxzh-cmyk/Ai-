@@ -155,6 +155,7 @@ Vercel 官方知识库说明，Vercel 没有中国大陆基础设施，`.vercel.
 - 环境变量使用 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`DEEPSEEK_API_KEY` 等服务端变量。
 - 真实 Key 只填在部署平台，不提交到 GitHub。
 - 部署后打开 `/api/health` 检查 Supabase 和 DeepSeek 是否连通。
+- 仓库包含手动触发的 GitHub Actions：`Deploy EdgeOne Makers`，需要先添加 `EDGEONE_PAGES_API_TOKEN` 等 GitHub Secrets。
 
 ## Cloudflare 绑定正式域名
 

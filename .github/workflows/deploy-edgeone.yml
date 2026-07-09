@@ -1,0 +1,67 @@
+name: Deploy EdgeOne Makers
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: EdgeOne Makers project name
+        required: true
+        default: ai-shaofeng-fitness
+      environment:
+        description: Deployment environment
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - preview
+      area:
+        description: EdgeOne deployment area
+        required: true
+        default: global
+        type: choice
+        options:
+          - global
+          - overseas
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEEPSEEK_BASE_URL: https://api.deepseek.com
+      DEEPSEEK_MODEL: deepseek-chat
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify build
+        run: npm run build
+
+      - name: Deploy to EdgeOne Makers
+        env:
+          EDGEONE_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+        run: |
+          if [ -z "$EDGEONE_TOKEN" ]; then
+            echo "Missing GitHub secret EDGEONE_PAGES_API_TOKEN."
+            exit 1
+          fi
+          npx edgeone makers deploy \
+            -n "${{ inputs.project_name }}" \
+            -e "${{ inputs.environment }}" \
+            -a "${{ inputs.area }}" \
+            -t "$EDGEONE_TOKEN" \
+            --json
