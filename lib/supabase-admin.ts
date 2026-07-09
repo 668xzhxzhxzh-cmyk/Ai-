@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { ProxyAgent, fetch as undiciFetch } from "undici";
 
 function cleanEnv(name: string) {
   return process.env[name]?.trim();
@@ -15,14 +14,15 @@ function firstEnv(...names: string[]) {
 
 export function createServerFetch() {
   const proxyUrl = process.env.SUPABASE_FETCH_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-  const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : null;
 
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     let lastError: unknown;
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        if (dispatcher) {
+        if (proxyUrl) {
+          const { ProxyAgent, fetch: undiciFetch } = await import("undici");
+          const dispatcher = new ProxyAgent(proxyUrl);
           return (await undiciFetch(input as Parameters<typeof undiciFetch>[0], {
             ...(init as Parameters<typeof undiciFetch>[1]),
             dispatcher
