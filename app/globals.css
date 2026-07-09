@@ -52,45 +52,44 @@ textarea {
   background-size: 48px 48px, 48px 48px, auto, auto, auto, auto, auto;
 }
 
-.hero-field {
+.home-hero {
   position: relative;
-  overflow: hidden;
+  min-height: min(690px, calc(100svh - 8.25rem));
   background:
-    linear-gradient(115deg, rgba(5, 6, 7, 0.45), rgba(5, 6, 7, 0.9) 66%),
-    radial-gradient(circle at 20% 18%, rgba(184, 255, 77, 0.22), transparent 22rem),
-    radial-gradient(circle at 72% 20%, rgba(114, 228, 255, 0.15), transparent 24rem),
-    linear-gradient(145deg, #0b0f0d, #151a18 52%, #070808);
+    linear-gradient(135deg, rgba(8, 10, 9, 0.96), rgba(6, 8, 9, 0.9) 42%, rgba(11, 15, 16, 0.78)),
+    #050607;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 34px 110px rgba(0, 0, 0, 0.34);
 }
 
-.hero-field::before {
+.home-hero::before {
   position: absolute;
   inset: 0;
+  z-index: 1;
   content: "";
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 38px 38px;
-  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9), transparent 72%);
+    linear-gradient(90deg, rgba(5, 6, 7, 0.96) 0%, rgba(5, 6, 7, 0.82) 34%, rgba(5, 6, 7, 0.34) 68%, rgba(5, 6, 7, 0.5) 100%),
+    linear-gradient(180deg, rgba(5, 6, 7, 0.56) 0%, rgba(5, 6, 7, 0.08) 36%, rgba(5, 6, 7, 0.9) 100%);
   pointer-events: none;
 }
 
-.hero-field::after {
+.home-hero::after {
   position: absolute;
-  inset: auto 0 0 0;
-  height: 42%;
+  inset: 0;
+  z-index: 1;
   content: "";
   background:
-    linear-gradient(180deg, transparent, rgba(5, 6, 7, 0.92)),
-    repeating-linear-gradient(90deg, rgba(184, 255, 77, 0.16) 0 1px, transparent 1px 44px);
-  transform: perspective(520px) rotateX(58deg);
-  transform-origin: bottom;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.82), transparent 74%);
   pointer-events: none;
 }
 
-.data-strip {
-  background:
-    linear-gradient(90deg, rgba(184, 255, 77, 0.18), transparent),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018));
+.home-hero-image {
+  object-position: 63% 50%;
+  opacity: 0.82;
 }
 
 .focus-ring {
@@ -148,5 +147,28 @@ textarea {
   }
   100% {
     background-position: 0 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-hero {
+    min-height: min(560px, calc(100svh - 7.25rem));
+    margin-inline: -1rem;
+  }
+
+  .home-hero::before {
+    background:
+      linear-gradient(90deg, rgba(5, 6, 7, 0.96) 0%, rgba(5, 6, 7, 0.86) 58%, rgba(5, 6, 7, 0.62) 100%),
+      linear-gradient(180deg, rgba(5, 6, 7, 0.52) 0%, rgba(5, 6, 7, 0.24) 42%, rgba(5, 6, 7, 0.92) 100%);
+  }
+
+  .home-hero::after {
+    background-size: 36px 36px;
+    opacity: 0.58;
+  }
+
+  .home-hero-image {
+    object-position: 68% 50%;
+    opacity: 0.48;
   }
 }

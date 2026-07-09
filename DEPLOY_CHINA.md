@@ -40,6 +40,19 @@ NEXT_PUBLIC_SITE_URL=填你的正式国内访问域名
 
 不要把真实 key 写进代码、README、截图或 GitHub。只填在部署平台环境变量里。
 
+## 当前线上状态
+
+EdgeOne Makers 项目 `ai-shaofeng-fitness` 已经可以成功构建和运行。当前已验证的服务端健康检查结果：
+
+- `checks.app` 为 `true`
+- `checks.supabase` 为 `true`
+- `checks.deepseek` 为 `true`
+- Supabase host 为 `rufkeckqicyqzmfaeual.supabase.co`
+
+注意：Supabase Project URL 必须是 `https://rufkeckqicyqzmfaeual.supabase.co`。如果环境变量里出现 `sb_publishable_...`、`eyJ...`、`postgresql://...`、Supabase 控制台页面 URL，或者 `https://rufkeckqiqcyqzmfaeual.supabase.co`，都需要立即改掉。
+
+EdgeOne 默认 `*.edgeone.cool` 地址有时会以预览链接形式带 `eo_token/eo_time` 访问保护。带 token 的预览地址可以用于验收构建结果，但不适合作为长期会员入口。最终正式上线必须绑定自定义域名，并把该域名同步到 Supabase Auth 的 Site URL 和 Redirect URLs。
+
 ## GitHub Actions 手动部署
 
 仓库里已经提供 `.github/workflows/deploy-edgeone.yml`。它不会自动运行，需要在 GitHub Actions 里手动触发。
