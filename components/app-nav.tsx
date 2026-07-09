@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Activity, BarChart3, ClipboardList, Dumbbell, Home, Languages, LogOut, MessageCircle, Shield, UserRound } from "lucide-react";
 import { clsx } from "clsx";
-import { createBrowserSupabase } from "@/lib/supabase-browser";
 import { useLanguage } from "./language-provider";
 import { clearLocalSession } from "@/lib/local-session";
 
@@ -28,7 +27,6 @@ export function AppNav() {
   const { language, setLanguage } = useLanguage();
 
   async function logout() {
-    await createBrowserSupabase().auth.signOut();
     clearLocalSession();
     router.push("/");
   }

@@ -1,6 +1,6 @@
 # AI邵峰健身
 
-一个可本地运行、可部署到 Vercel 的 AI + 真人监督健身会员管理 MVP。技术栈：Next.js、TypeScript、Tailwind CSS、Supabase Auth/Database、DeepSeek API、Recharts。
+一个可本地运行、可部署到 Vercel 或 EdgeOne Makers 的 AI + 真人监督健身会员管理 MVP。技术栈：Next.js、TypeScript、Tailwind CSS、Supabase Auth/Database、DeepSeek API、Recharts。
 
 ## 功能
 
@@ -8,6 +8,7 @@
 - 会员端：`/onboarding` 资料填写、`/plans` 训练计划和饮食建议、`/checkin` 每日打卡、AI 每日分析、`/chat` AI 问答、`/progress` 进度曲线
 - 管理端：`/admin` 会员列表、风险提醒、未打卡提醒，`/admin/members/[id]` 单个会员详情、处理任务、一键生成下周计划
 - AI：所有生成和问答都在 API route 服务端调用 DeepSeek，不把 API Key 暴露到前端
+- 国内访问：浏览器只请求本站同源 `/api/*`，Supabase 和 DeepSeek 由服务端调用，减少大陆会员直连海外服务失败的概率
 - 安全：风险关键词、疼痛/疲劳/睡眠阈值检测，自动创建 `admin_tasks`
 - 双语：中文/英文切换，AI 输出按用户语言生成
 
@@ -38,16 +39,20 @@ npm run dev
 复制 `.env.example` 为 `.env.local`：
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 NEXT_PUBLIC_SITE_URL=
+
+# 兼容旧 Vercel 配置，可留空。新部署优先使用 SUPABASE_URL / SUPABASE_ANON_KEY。
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-`NEXT_PUBLIC_*` 可以给浏览器使用。`SUPABASE_SERVICE_ROLE_KEY` 和 `DEEPSEEK_API_KEY` 只能放在服务端环境变量，不能写进前端代码。
+`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` 和 `DEEPSEEK_API_KEY` 都只放在部署平台或 `.env.local`，不能写进前端代码。`NEXT_PUBLIC_SUPABASE_*` 仅用于兼容旧 Vercel 环境变量，本项目浏览器端不再直接创建 Supabase 客户端。
 
 ## 配置 Supabase
 
@@ -136,6 +141,21 @@ git push -u origin main
 4. Environment Variables 中配置 `.env.local` 里的所有变量。
 5. 部署完成后，把 Vercel 域名加入 Supabase Auth 的 Site URL 和 Redirect URLs。
 
+## 中国境内免 VPN 访问
+
+Vercel 官方知识库说明，Vercel 没有中国大陆基础设施，`.vercel.app` 子域名在大陆可能被阻断或限速。因此大陆会员主入口建议部署到 EdgeOne Makers / 腾讯云，并绑定正式国内可访问域名。
+
+本项目的国内部署说明见 [DEPLOY_CHINA.md](DEPLOY_CHINA.md)。
+
+关键点：
+
+- EdgeOne Makers 支持 Next.js 13.5+、14、15、16，并支持 App Router、SSR、Route Handlers。
+- 构建命令：`npm run build`
+- 输出目录：`.next`
+- 环境变量使用 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`DEEPSEEK_API_KEY` 等服务端变量。
+- 真实 Key 只填在部署平台，不提交到 GitHub。
+- 部署后打开 `/api/health` 检查 Supabase 和 DeepSeek 是否连通。
+
 ## Cloudflare 绑定正式域名
 
 1. 在 Cloudflare 添加你的域名并按提示切换 nameserver。
@@ -148,7 +168,7 @@ git push -u origin main
 
 GitHub Pages 只适合静态站点。本项目需要登录、数据库、服务端 DeepSeek API 调用、管理员后台和私密环境变量，所以必须部署到 Vercel、Node.js 服务器或其他支持服务端运行时的平台。
 
-## 以后迁移到阿里云 / 腾讯云
+## 以后迁移到阿里云 / 腾讯云服务器
 
 项目是标准 Next.js 应用，可以迁移到自有服务器：
 

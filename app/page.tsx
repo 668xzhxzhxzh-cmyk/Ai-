@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, ClipboardCheck, Dumbbell, MessageCircle, ShieldCheck, UsersRound } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, CheckCircle2, Dumbbell, MessageCircle, ShieldCheck, UsersRound } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { Button, InsightCard, PageShell, SectionCard, StatusBadge, TrainingPlanCard } from "@/components/ui";
 import { useLanguage } from "@/components/language-provider";
@@ -83,53 +83,93 @@ export default function HomePage() {
           </div>
 
           <div className="relative lg:pb-3">
-            <div
-              className="min-h-[430px] overflow-hidden rounded-[1.65rem] border border-white/12 bg-cover bg-center shadow-[0_28px_100px_rgba(0,0,0,0.44)] sm:min-h-[500px] lg:min-h-[520px]"
-              style={{
-                backgroundImage:
-                  "linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.78)), linear-gradient(90deg, rgba(0,0,0,0.55), rgba(0,0,0,0.08)), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1400&q=85')"
-              }}
-              role="img"
-              aria-label={zh ? "高端健身房训练场景" : "Premium gym training scene"}
-            >
-              <div className="flex h-full min-h-[430px] flex-col justify-between p-4 sm:min-h-[500px] sm:p-5 lg:min-h-[520px]">
-                <div className="ml-auto w-full max-w-[280px] rounded-[1.15rem] border border-white/14 bg-black/54 p-3.5 shadow-[0_20px_70px_rgba(0,0,0,0.34)] backdrop-blur-md sm:max-w-[300px] sm:p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">{zh ? "今日计划" : "Today"}</p>
-                    <StatusBadge tone="success">READY</StatusBadge>
+            <div className="hero-field min-h-[430px] rounded-xl border border-white/12 p-3 shadow-[0_28px_100px_rgba(0,0,0,0.44)] sm:min-h-[500px] sm:p-4 lg:min-h-[520px]">
+              <div className="relative z-10 flex min-h-[404px] flex-col gap-3 rounded-lg border border-white/10 bg-zinc-950/62 p-3 backdrop-blur-xl sm:min-h-[468px] sm:p-4 lg:min-h-[488px]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-lime-300 text-black">
+                      <Activity className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-50">{zh ? "会员实时工作台" : "Live member workspace"}</p>
+                      <p className="mt-0.5 text-xs text-zinc-500">{zh ? "训练 · 营养 · 风险 · 复盘" : "Training · Nutrition · Risk · Review"}</p>
+                    </div>
                   </div>
-                  <h2 className="mt-3 text-xl font-semibold leading-tight text-zinc-50 sm:text-[22px]">{zh ? "下肢力量 + 核心稳定" : "Lower strength + core"}</h2>
-                  <div className="mt-3 grid gap-2">
+                  <StatusBadge tone="success">{zh ? "在线" : "Online"}</StatusBadge>
+                </div>
+
+                <div className="grid flex-1 gap-3 lg:grid-cols-[0.72fr_1.28fr]">
+                  <aside className="grid gap-2 rounded-lg border border-white/10 bg-black/24 p-2.5">
                     {[
-                      [zh ? "深蹲" : "Squat", "4 x 8", "RPE 7"],
-                      [zh ? "罗马尼亚硬拉" : "RDL", "3 x 10", "RPE 6"],
-                      [zh ? "平板支撑" : "Plank", "3 x 45s", zh ? "控制" : "Control"]
-                    ].map(([name, volume, effort]) => (
-                      <div key={name} className="flex items-center justify-between rounded-[1rem] border border-white/10 bg-white/[0.055] p-2.5">
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-100">{name}</p>
-                          <p className="mt-1 text-xs text-zinc-500">{volume}</p>
+                      [zh ? "王同学" : "Member W", zh ? "恢复 82" : "Recovery 82", "bg-lime-300"],
+                      [zh ? "李同学" : "Member L", zh ? "膝痛跟进" : "Knee follow-up", "bg-amber-300"],
+                      [zh ? "陈同学" : "Member C", zh ? "已完成" : "Completed", "bg-cyan-300"]
+                    ].map(([name, meta, dot]) => (
+                      <div key={name} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] p-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-100">{name}</p>
+                            <p className="mt-0.5 text-xs text-zinc-500">{meta}</p>
+                          </div>
                         </div>
-                        <span className="text-xs font-semibold text-lime-200">{effort}</span>
+                        <span className="h-6 w-6 rounded-lg border border-white/10 bg-white/[0.05]" />
                       </div>
                     ))}
-                  </div>
-                </div>
-                <div className="mt-14 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-[1.05rem] border border-lime-300/20 bg-black/48 p-3 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime-100/70">{zh ? "恢复" : "Recovery"}</p>
-                    <p className="mt-2 text-2xl font-semibold leading-none text-zinc-50">82</p>
-                    <p className="mt-2 text-xs text-zinc-500">{zh ? "可以训练" : "Trainable"}</p>
-                  </div>
-                  <div className="rounded-[1.05rem] border border-sky-300/18 bg-black/42 p-3 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-100/70">{zh ? "睡眠" : "Sleep"}</p>
-                    <p className="mt-2 text-2xl font-semibold leading-none text-zinc-50">7.4h</p>
-                    <p className="mt-2 text-xs text-zinc-500">{zh ? "稳定" : "Stable"}</p>
-                  </div>
-                  <div className="rounded-[1.05rem] border border-white/12 bg-black/38 p-3 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{zh ? "压力" : "Strain"}</p>
-                    <p className="mt-2 text-2xl font-semibold leading-none text-zinc-50">12.8</p>
-                    <p className="mt-2 text-xs text-zinc-500">{zh ? "中等负荷" : "Moderate"}</p>
+                  </aside>
+
+                  <div className="grid gap-3">
+                    <div className="data-strip rounded-lg border border-lime-300/18 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-lime-100/70">{zh ? "今日训练" : "Today"}</p>
+                          <h2 className="mt-2 text-xl font-semibold leading-tight text-zinc-50 sm:text-2xl">
+                            {zh ? "下肢力量 + 核心稳定" : "Lower strength + core stability"}
+                          </h2>
+                        </div>
+                        <StatusBadge tone="info">AI CHECKED</StatusBadge>
+                      </div>
+                      <div className="mt-4 grid gap-2">
+                        {[
+                          [zh ? "深蹲" : "Squat", "4 x 8", "RPE 7"],
+                          [zh ? "罗马尼亚硬拉" : "RDL", "3 x 10", "RPE 6"],
+                          [zh ? "平板支撑" : "Plank", "3 x 45s", zh ? "控制" : "Control"]
+                        ].map(([name, volume, effort]) => (
+                          <div key={name} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-lg border border-white/10 bg-black/28 p-2.5">
+                            <p className="text-sm font-semibold text-zinc-100">{name}</p>
+                            <span className="text-xs text-zinc-500">{volume}</span>
+                            <span className="rounded-md bg-lime-300/12 px-2 py-1 text-xs font-semibold text-lime-100">{effort}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        [zh ? "恢复" : "Recovery", "82", zh ? "可以训练" : "Trainable", "text-lime-100"],
+                        [zh ? "睡眠" : "Sleep", "7.4h", zh ? "稳定" : "Stable", "text-cyan-100"],
+                        [zh ? "压力" : "Strain", "12.8", zh ? "中等负荷" : "Moderate", "text-amber-100"]
+                      ].map(([label, value, hint, tone]) => (
+                        <div key={label} className="rounded-lg border border-white/10 bg-black/30 p-3">
+                          <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${tone}`}>{label}</p>
+                          <p className="mt-2 text-2xl font-semibold leading-none text-zinc-50">{value}</p>
+                          <p className="mt-2 text-xs text-zinc-500">{hint}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-zinc-100">{zh ? "AI 今日判断" : "AI daily read"}</p>
+                        <span className="text-xs font-semibold text-lime-200">92%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full w-[92%] rounded-full bg-lime-300" />
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-zinc-400">
+                        {zh ? "维持训练强度，膝关节无痛时再递增负重；晚餐蛋白补足。" : "Keep intensity steady, increase load only if the knee stays pain-free, and add protein at dinner."}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -159,7 +199,7 @@ export default function HomePage() {
                 ? ["填写资料与目标", "生成训练和饮食计划", "每日打卡与 AI 分析", "风险提示和真人跟进", "根据结果调整下周计划"]
                 : ["Intake and goals", "Training and nutrition plans", "Daily check-ins and AI review", "Risk alerts and human follow-up", "Adjust next week from results"]
               ).map((item, index) => (
-                <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
+                <div key={item} className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/25 p-3">
                   <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-xs font-bold text-black">{index + 1}</span>
                   <span className="text-sm font-medium text-zinc-200">{item}</span>
                 </div>

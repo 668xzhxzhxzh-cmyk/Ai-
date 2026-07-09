@@ -19,6 +19,10 @@ export function getLocalAccessToken() {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+export function getLocalRefreshToken() {
+  return window.localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
 export function clearLocalSession() {
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);

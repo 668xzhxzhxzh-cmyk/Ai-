@@ -6,17 +6,14 @@ import { Activity, ArrowRight, CheckCircle2, LockKeyhole, LogIn, ShieldCheck } f
 import { AppNav } from "@/components/app-nav";
 import { useLanguage } from "@/components/language-provider";
 import { Button, Field, InsightCard, Notice, PageShell, SectionCard, StatCard, StatusBadge, inputClass } from "@/components/ui";
-import { createBrowserSupabase } from "@/lib/supabase-browser";
-import { describeAuthError, getAuthErrorDetails, getPublicSupabaseEnvStatus, testSupabaseGetSession } from "@/lib/auth-errors";
+import { describeAuthError, getAuthErrorDetails } from "@/lib/auth-errors";
 import { saveLocalSession } from "@/lib/local-session";
 
 type AuthDebug = {
-  urlExists: boolean;
-  anonKeyExists: boolean;
-  getSessionStatus: "未检测" | "成功" | "失败";
+  apiStatus: "未检测" | "成功" | "失败";
+  supabaseReady: boolean;
+  deepseekReady: boolean;
   message: string | null;
-  errorName?: string | null;
-  errorStatus?: string | null;
 };
 
 export default function AuthPage() {
@@ -29,38 +26,46 @@ export default function AuthPage() {
   const [message, setMessage] = useState("");
   const [errorDetails, setErrorDetails] = useState<{ name: string; message: string; status: string | null } | null>(null);
   const [debug, setDebug] = useState<AuthDebug>({
-    urlExists: false,
-    anonKeyExists: false,
-    getSessionStatus: "未检测",
+    apiStatus: "未检测",
+    supabaseReady: false,
+    deepseekReady: false,
     message: null
   });
   const [loading, setLoading] = useState(false);
 
   async function runDiagnostics() {
-    const envStatus = getPublicSupabaseEnvStatus();
     setDebug({
-      urlExists: envStatus.urlExists,
-      anonKeyExists: envStatus.anonKeyExists,
-      getSessionStatus: "未检测",
-      message: envStatus.configError
+      apiStatus: "未检测",
+      supabaseReady: false,
+      deepseekReady: false,
+      message: null
     });
 
-    if (envStatus.configError) return;
-
-    const sessionResult = await testSupabaseGetSession();
-    setDebug({
-      urlExists: envStatus.urlExists,
-      anonKeyExists: envStatus.anonKeyExists,
-      getSessionStatus: sessionResult.ok ? "成功" : "失败",
-      message: sessionResult.ok ? "Supabase auth getSession 可以返回结果。" : sessionResult.message,
-      errorName: sessionResult.details?.name || null,
-      errorStatus: sessionResult.details?.status || null
-    });
+    try {
+      const response = await fetch("/api/health", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      setDebug({
+        apiStatus: response.ok ? "成功" : "失败",
+        supabaseReady: Boolean(payload?.checks?.supabase),
+        deepseekReady: Boolean(payload?.checks?.deepseek),
+        message: response.ok
+          ? (zh ? "本站 API 可以连接数据库和 AI 服务。" : "The site API can reach database and AI services.")
+          : payload?.diagnostics?.supabase || payload?.error || (zh ? "本站 API 健康检查失败。" : "Site API health check failed.")
+      });
+    } catch (error) {
+      setDebug({
+        apiStatus: "失败",
+        supabaseReady: false,
+        deepseekReady: false,
+        message: error instanceof Error ? error.message : (zh ? "本站 API 健康检查失败。" : "Site API health check failed.")
+      });
+    }
   }
 
   useEffect(() => {
     runDiagnostics();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -120,15 +125,6 @@ export default function AuthPage() {
         refresh_token: loginPayload.session.refresh_token
       });
 
-      try {
-        await createBrowserSupabase().auth.setSession({
-          access_token: loginPayload.session.access_token,
-          refresh_token: loginPayload.session.refresh_token
-        });
-      } catch {
-        // Local token storage above is enough for this app's API routes.
-      }
-
       const response = await fetch("/api/me", {
         headers: { Authorization: `Bearer ${loginPayload.session.access_token}` }
       });
@@ -160,7 +156,7 @@ export default function AuthPage() {
               <StatusBadge tone="success">{zh ? "会员专属入口" : "Member access"}</StatusBadge>
               <StatusBadge tone="info">{zh ? "资料 · 计划 · 打卡 · 反馈" : "Profile · Plans · Feedback"}</StatusBadge>
             </div>
-            <h1 className="max-w-3xl text-5xl font-semibold leading-[0.96] text-zinc-50 sm:text-6xl">
+            <h1 className="max-w-3xl text-[clamp(34px,10.2vw,44px)] font-semibold leading-[1.06] text-zinc-50 sm:text-6xl sm:leading-[0.96]">
               {zh ? "登录后，继续你的私教管理路径。" : "Sign in and continue your coaching path."}
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
@@ -191,7 +187,7 @@ export default function AuthPage() {
                   <p className="mt-1 text-sm text-zinc-500">{zh ? "进入 AI邵峰健身会员系统" : "Enter AI Shaofeng Fitness"}</p>
                 </div>
               </div>
-              <StatusBadge tone={debug.getSessionStatus === "失败" ? "warning" : "success"}>{debug.getSessionStatus}</StatusBadge>
+              <StatusBadge tone={debug.apiStatus === "失败" ? "warning" : "success"}>{debug.apiStatus}</StatusBadge>
             </div>
 
             <form className="grid gap-4" onSubmit={submit}>
@@ -221,7 +217,7 @@ export default function AuthPage() {
             ) : null}
 
             {errorDetails ? (
-              <div className="mt-3 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">
+              <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">
                 <p>error.name: {errorDetails.name || "-"}</p>
                 <p>error.status: {errorDetails.status || "-"}</p>
                 <p>error.message: {errorDetails.message || "-"}</p>
@@ -236,18 +232,16 @@ export default function AuthPage() {
               {mode === "login" ? (zh ? "没有账号？申请内测会员" : "No account? Join the beta") : zh ? "已有账号？去登录" : "Already have an account? Log in"}
             </button>
 
-            <div className="mt-5 rounded-[1.1rem] border border-white/10 bg-black/25 p-3 text-xs leading-5 text-zinc-400">
+            <div className="mt-5 rounded-lg border border-white/10 bg-black/25 p-3 text-xs leading-5 text-zinc-400">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="font-semibold text-zinc-200">{zh ? "连接状态" : "Connection status"}</p>
                 <button type="button" className="min-h-9 font-semibold text-lime-200 hover:text-lime-100" onClick={runDiagnostics}>
                   {zh ? "重新检测" : "Retest"}
                 </button>
               </div>
-              <p>URL: {debug.urlExists ? (zh ? "已配置" : "Configured") : (zh ? "缺失" : "Missing")}</p>
-              <p>anon key: {debug.anonKeyExists ? (zh ? "已配置" : "Configured") : (zh ? "缺失" : "Missing")}</p>
-              <p>Supabase auth getSession: {debug.getSessionStatus}</p>
-              {debug.errorName ? <p>error.name: {debug.errorName}</p> : null}
-              {debug.errorStatus ? <p>error.status: {debug.errorStatus}</p> : null}
+              <p>API: {debug.apiStatus}</p>
+              <p>Supabase: {debug.supabaseReady ? (zh ? "服务端已连接" : "Server connected") : (zh ? "未就绪" : "Not ready")}</p>
+              <p>DeepSeek: {debug.deepseekReady ? (zh ? "已配置" : "Configured") : (zh ? "未配置" : "Missing")}</p>
               {debug.message ? <p className="mt-1">{debug.message}</p> : null}
             </div>
           </SectionCard>

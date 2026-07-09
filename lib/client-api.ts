@@ -1,7 +1,6 @@
 "use client";
 
-import { createBrowserSupabase } from "./supabase-browser";
-import { getLocalAccessToken } from "./local-session";
+import { clearLocalSession, getLocalAccessToken, getLocalRefreshToken, saveLocalSession } from "./local-session";
 
 const cache = new Map<string, { expiresAt: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
@@ -29,18 +28,38 @@ export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Error";
 }
 
-export async function getAccessToken() {
-  const supabase = createBrowserSupabase();
-  const { data, error } = await supabase.auth.getSession();
-  const fallbackToken = getLocalAccessToken();
-  if (error && !fallbackToken) {
+async function refreshAccessToken() {
+  const refreshToken = getLocalRefreshToken();
+  if (!refreshToken) {
+    clearLocalSession();
     throw new ApiError("Please log in first.", 401);
   }
-  const token = data.session?.access_token || fallbackToken || "";
-  if (!token) {
-    throw new ApiError("Please log in first.", 401);
+
+  const response = await fetch("/api/auth/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok || !payload?.session?.access_token) {
+    clearLocalSession();
+    throw new ApiError(payload?.error || "Please log in first.", response.status || 401);
   }
-  return token;
+
+  saveLocalSession({
+    access_token: payload.session.access_token,
+    refresh_token: payload.session.refresh_token || refreshToken
+  });
+
+  return String(payload.session.access_token);
+}
+
+export async function getAccessToken({ allowRefresh = true }: { allowRefresh?: boolean } = {}) {
+  const token = getLocalAccessToken();
+  if (token) return token;
+  if (allowRefresh) return refreshAccessToken();
+  throw new ApiError("Please log in first.", 401);
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -58,15 +77,25 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     cache.delete("/api/me");
   }
 
-  const token = await getAccessToken();
-  const request = fetch(path, {
+  const requestWithToken = async (token: string) => fetch(path, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       ...(init.headers || {})
     }
-  }).then(async (response) => {
+  });
+
+  const request = (async () => {
+    let token = await getAccessToken();
+    let response = await requestWithToken(token);
+
+    if (response.status === 401 && getLocalRefreshToken()) {
+      cache.delete("/api/me");
+      token = await refreshAccessToken();
+      response = await requestWithToken(token);
+    }
+
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new ApiError(payload.error || "Request failed", response.status);
@@ -75,7 +104,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       cache.set(path, { expiresAt: Date.now() + ME_CACHE_MS, value: payload });
     }
     return payload as T;
-  });
+  })();
 
   if (canCache) {
     inflight.set(path, request);

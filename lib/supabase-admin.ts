@@ -5,6 +5,14 @@ function cleanEnv(name: string) {
   return process.env[name]?.trim();
 }
 
+function firstEnv(...names: string[]) {
+  for (const name of names) {
+    const value = cleanEnv(name);
+    if (value) return value;
+  }
+  return undefined;
+}
+
 export function createServerFetch() {
   const proxyUrl = process.env.SUPABASE_FETCH_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
   const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : null;
@@ -35,11 +43,11 @@ export function createServerFetch() {
 }
 
 export function createServerAuthSupabase() {
-  const url = cleanEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = cleanEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = firstEnv("SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
   if (!url || !anonKey) {
-    throw new Error("Missing Supabase public server environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.");
+    throw new Error("Missing Supabase auth environment variables. Check SUPABASE_URL and SUPABASE_ANON_KEY in your deployment platform.");
   }
 
   return createClient(url, anonKey, {
@@ -54,11 +62,11 @@ export function createServerAuthSupabase() {
 }
 
 export function createAdminSupabase() {
-  const url = cleanEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const url = firstEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
   const serviceKey = cleanEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!url || !serviceKey) {
-    throw new Error("Missing Supabase server environment variables. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.");
+    throw new Error("Missing Supabase server environment variables. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your deployment platform.");
   }
 
   return createClient(url, serviceKey, {
